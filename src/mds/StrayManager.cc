@@ -330,12 +330,14 @@ void StrayManager::enqueue(CDentry *dn, bool trunc)
     }
   }
 
-
-  // Try to purge immediately if possible, else enqueue
   const uint32_t ops_required = _calculate_ops_required(in, trunc);
 
-  bool consumed = _consume(dn, trunc, ops_required);
-  if (consumed) {
+  // Try to purge immediately if there is nothing in the queue, otherwise
+  // we will go to the back of the queue (even if there is allowance available
+  // to run us immediately) in order to be fair to others.
+  if (ready_for_purge.empty()) {
+    bool const consumed = _consume(dn, trunc, ops_required);
+    assert(consumed); // Should never be delayed if queue is empty
     dout(10) << __func__ << ": purging this dentry immediately: "
       << *dn << dendl;
   } else {
